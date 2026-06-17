@@ -484,6 +484,20 @@
     let mediaRecorder = null, audioChunks = [], recordedBlob = null;
     let isRecording = false, audioContext = null, analyser = null, animFrameId = null;
 
+    /* ── Auto-sync voice when language changes ── */
+    const LANG_VOICE_MAP = {
+      en:'en-US-female-1', hi:'hi-IN-female-1', ar:'ar-SA-female-1', ur:'ur-PK-female-1',
+      es:'es-ES-female-1', fr:'fr-FR-female-1', de:'de-DE-female-1', ja:'ja-JP-female-1',
+      ko:'ko-KR-female-1', zh:'zh-CN-female-1', ru:'ru-RU-female-1', pt:'pt-BR-female-1',
+      bn:'bn-IN-female-1', ta:'ta-IN-female-1', te:'te-IN-female-1', ml:'ml-IN-female-1',
+      mr:'mr-IN-female-1', gu:'gu-IN-female-1', kn:'kn-IN-female-1', pa:'pa-IN-female-1',
+    };
+
+    document.getElementById('ttsLang').addEventListener('change', function() {
+      const voice = LANG_VOICE_MAP[this.value] || `${this.value}-female-1`;
+      document.getElementById('ttsVoice').value = voice;
+    });
+
     async function checkHealth() {
       try {
         const resp = await fetch(`${API}/api/engine-health`);
@@ -560,7 +574,13 @@
       output.classList.remove('visible');
 
       const formData = new FormData();
-      formData.append('file', file instanceof Blob && !(file instanceof File) ? new File([file], 'recording.webm', {type: file.type}) : file);
+      /* Strip codec from type: 'audio/webm;codecs=opus' → 'audio/webm' */
+      const cleanType = (file.type || 'audio/webm').split(';')[0];
+      if (file instanceof Blob && !(file instanceof File)) {
+        formData.append('file', new File([file], 'recording.webm', { type: cleanType }));
+      } else {
+        formData.append('file', file);
+      }
       const lang = document.getElementById('sttLang').value;
       if (lang) formData.append('language', lang);
 

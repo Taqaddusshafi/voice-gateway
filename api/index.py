@@ -92,7 +92,9 @@ async def demo_stt(
     url = f"{STT_ENGINE_URL.rstrip('/')}{STT_ENGINE_PATH}"
     data = await file.read()
     filename = file.filename or "audio.wav"
-    content_type = file.content_type or "audio/wav"
+    # Strip codec params: 'audio/webm;codecs=opus' → 'audio/webm'
+    raw_ct = file.content_type or "audio/wav"
+    content_type = raw_ct.split(";")[0].strip()
     form_data = {}
     if language:
         form_data["language"] = language
