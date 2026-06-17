@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from app.database import Base, engine
-from app.routers import auth, profile, tts, stt
+from app.routers import auth, profile, tts, stt, demo
 from app.config import get_settings
 from app.core.logging import configure_logging
 
@@ -21,8 +21,8 @@ app = FastAPI(title="Voice Gateway API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_credentials="*" not in settings.allowed_origins,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -34,6 +34,7 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(tts.router)
 app.include_router(stt.router)
+app.include_router(demo.router)
 
 
 @app.get("/health")
