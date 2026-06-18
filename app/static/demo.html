@@ -549,6 +549,94 @@
       to   { opacity: 1; }
     }
 
+    /* ─── Speaker Picker ──────────────────────────────────── */
+    .speaker-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .speaker-loading {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 12px;
+      animation: pulse 1.5s infinite;
+    }
+
+    .speaker-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .speaker-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-xs);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-glass);
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .speaker-card:hover {
+      border-color: rgba(108,92,231,0.35);
+      background: rgba(108,92,231,0.06);
+    }
+
+    .speaker-card.selected {
+      border-color: var(--accent-tts);
+      background: rgba(108,92,231,0.12);
+      box-shadow: 0 0 0 1px var(--accent-tts);
+    }
+
+    .speaker-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: rgba(108,92,231,0.15);
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .speaker-card.selected .speaker-avatar {
+      background: rgba(108,92,231,0.3);
+    }
+
+    .speaker-info { min-width: 0; }
+
+    .speaker-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .speaker-style {
+      font-size: 0.67rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .speaker-card.selected .speaker-name { color: var(--accent-tts); }
+
     /* ─── Scrollbar ───────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -622,9 +710,14 @@
               <option value="pa">Punjabi</option>
             </select>
           </div>
-          <div class="field">
-            <label for="ttsVoice">Voice</label>
-            <input type="text" id="ttsVoice" value="en-US-female-1" placeholder="e.g. en-US-female-1" />
+          <div class="field" style="grid-column: 1 / -1;">
+            <div class="speaker-label">
+              Voice / Speaker
+              <span id="selectedSpeakerBadge" style="font-size:0.7rem;color:var(--accent-tts);font-weight:700;"></span>
+            </div>
+            <div id="speakerGrid" class="speaker-grid">
+              <div class="speaker-loading">Loading speakers…</div>
+            </div>
           </div>
         </div>
 
@@ -748,6 +841,66 @@
     setInterval(checkHealth, 30000);
 
     /* ───────────────────────────────────────────
+       Speaker picker
+    ─────────────────────────────────────────── */
+    let selectedSpeaker = 'divya';
+
+    const GENDER_EMOJI = { female: '👩', male: '👨' };
+
+    function buildSpeakerCards(voices) {
+      const grid = document.getElementById('speakerGrid');
+      grid.innerHTML = '';
+
+      voices.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'speaker-card' + (v.id === selectedSpeaker ? ' selected' : '');
+        card.dataset.id = v.id;
+        card.innerHTML = `
+          <div class="speaker-avatar">${GENDER_EMOJI[v.gender] || '🎙️'}</div>
+          <div class="speaker-info">
+            <div class="speaker-name">${v.name}</div>
+            <div class="speaker-style">${v.style}</div>
+          </div>`;
+
+        card.addEventListener('click', () => {
+          selectedSpeaker = v.id;
+          document.querySelectorAll('.speaker-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          document.getElementById('selectedSpeakerBadge').textContent = v.name;
+        });
+
+        grid.appendChild(card);
+      });
+
+      // Set initial badge
+      const initial = voices.find(v => v.id === selectedSpeaker);
+      if (initial) document.getElementById('selectedSpeakerBadge').textContent = initial.name;
+    }
+
+    async function loadSpeakers() {
+      try {
+        const resp = await fetch(`${API}/voices`);
+        if (!resp.ok) throw new Error('Failed to load voices');
+        const data = await resp.json();
+        buildSpeakerCards(data.voices || []);
+      } catch (err) {
+        // Fallback: show hardcoded speakers if /voices fails
+        buildSpeakerCards([
+          { id: 'divya',  name: 'Divya',  gender: 'female', style: 'Monotone, fast' },
+          { id: 'sita',   name: 'Sita',   gender: 'female', style: 'Calm, slow' },
+          { id: 'meera',  name: 'Meera',  gender: 'female', style: 'Expressive, warm' },
+          { id: 'priya',  name: 'Priya',  gender: 'female', style: 'Clear, professional' },
+          { id: 'rohit',  name: 'Rohit',  gender: 'male',   style: 'Calm, neutral' },
+          { id: 'arjun',  name: 'Arjun',  gender: 'male',   style: 'Deep, slow' },
+          { id: 'vikram', name: 'Vikram', gender: 'male',   style: 'Confident, expressive' },
+          { id: 'amir',   name: 'Amir',   gender: 'male',   style: 'Clear, slightly fast' },
+        ]);
+      }
+    }
+
+    loadSpeakers();
+
+    /* ───────────────────────────────────────────
        TTS
     ─────────────────────────────────────────── */
     async function handleTTS() {
@@ -766,7 +919,7 @@
       const formData = new FormData();
       formData.append('text', text);
       formData.append('language', document.getElementById('ttsLang').value);
-      formData.append('voice', document.getElementById('ttsVoice').value);
+      formData.append('voice', selectedSpeaker || 'divya');
 
       const start = performance.now();
 
