@@ -58,24 +58,20 @@ async def synthesize(text: str, voice: str, format: str) -> bytes:
 # ---------------------------------------------------------------------------
 
 _FEMALE_CLEAR = (
-    "A female speaker delivers a slightly expressive and animated speech "
-    "with a moderate speed and pitch. The recording is of very high quality, "
-    "with the speaker's voice sounding clear and very close up."
+    "Divya's voice is monotone yet slightly fast in delivery, "
+    "with a very close recording that almost has no background noise."
 )
 _MALE_CLEAR = (
-    "A male speaker delivers a clear and neutral speech with a moderate speed "
-    "and pitch. The recording is of very high quality, with the speaker's voice "
-    "sounding clear and very close up."
+    "Rohit's voice is calm and neutral with a moderate pace, "
+    "with a very close recording that almost has no background noise."
 )
 _FEMALE_SLOW = (
-    "A female speaker delivers calm, slow, and clearly articulated speech. "
-    "The recording is of very high quality, with the speaker's voice sounding "
-    "clear and very close up."
+    "Sita's voice is calm and slow with clear articulation, "
+    "with a very close recording that almost has no background noise."
 )
 _MALE_SLOW = (
-    "A male speaker delivers calm, slow, and clearly articulated speech. "
-    "The recording is of very high quality, with the speaker's voice sounding "
-    "clear and very close up."
+    "Arjun's voice is deep and slow with clear articulation, "
+    "with a very close recording that almost has no background noise."
 )
 
 VOICE_DESCRIPTIONS: dict[str, str] = {
