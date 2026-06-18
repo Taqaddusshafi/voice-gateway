@@ -12,12 +12,36 @@ from fastapi import APIRouter, File, Form, UploadFile, HTTPException, status
 from fastapi.responses import HTMLResponse, Response
 
 from app.config import get_settings
+from app.services.tts_service import get_speaker_description
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/demo", tags=["demo"])
 settings = get_settings()
 
 DEMO_HTML = Path(__file__).resolve().parent.parent / "static" / "demo.html"
+
+
+@router.get("/voices")
+async def list_voices():
+    """Return all available TTS speaker voices — no auth required.
+
+    Used by the demo page to populate the speaker picker.
+    """
+    from app.services.tts_service import SPEAKERS
+    return {
+        "voices": [
+            {
+                "id": name,
+                "name": name.capitalize(),
+                "gender": info["gender"],
+                "style": info["style"],
+                "language": info["language"],
+            }
+            for name, info in SPEAKERS.items()
+        ],
+        "usage": "Pass the voice 'id' as the `voice` field in POST /text-to-speech",
+        "example": {"text": "\u0928\u092e\u0938\u094d\u0924\u0947", "voice": "rohit"},
+    }
 
 
 @router.get("", response_class=HTMLResponse, include_in_schema=False)
@@ -31,13 +55,18 @@ async def demo_tts(text: str = Form(...),
                    language: str = Form(default="en"),
                    voice: str = Form(default="en-US-female-1")):
     """Proxy TTS request to the engine and return raw audio bytes."""
+    # Resolve speaker name (e.g. 'rohit') to a Parler-TTS natural-language
+    # description before forwarding — the engine needs the full description,
+    # not an opaque ID.
+    parler_voice = get_speaker_description(voice)
+
     url = f"{settings.tts_engine_url.rstrip('/')}{settings.tts_engine_path}"
-    logger.info("Demo TTS → %s  lang=%s voice=%s", url, language, voice)
+    logger.info("Demo TTS → %s  lang=%s speaker=%s", url, language, voice)
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 url,
-                json={"text": text, "language": language, "voice": voice},
+                json={"text": text, "language": language, "voice": parler_voice},
                 timeout=settings.engine_timeout_seconds,
             )
             resp.raise_for_status()

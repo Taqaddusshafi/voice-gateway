@@ -879,7 +879,7 @@
 
     async function loadSpeakers() {
       try {
-        const resp = await fetch(`${API}/voices`);
+        const resp = await fetch(`${API}/demo/voices`);
         if (!resp.ok) throw new Error('Failed to load voices');
         const data = await resp.json();
         buildSpeakerCards(data.voices || []);
