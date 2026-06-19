@@ -15,9 +15,6 @@ import re
 from pathlib import PurePosixPath
 from typing import Optional
 
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
-
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -48,7 +45,13 @@ def _safe_key(relative_path: str) -> str:
 
 
 def _get_s3_client():
-    """Build a boto3 S3 client from app settings."""
+    """Build a boto3 S3 client from app settings. boto3 is imported lazily."""
+    try:
+        import boto3  # noqa: PLC0415 — lazy import, only needed when USE_S3_STORAGE=true
+    except ImportError as exc:
+        raise RuntimeError(
+            "boto3 is required for S3 storage. Run: pip install boto3==1.35.0"
+        ) from exc
     return boto3.client(
         "s3",
         region_name=settings.aws_s3_region,
@@ -75,6 +78,7 @@ def _save_to_s3(
     region = settings.aws_s3_region
 
     try:
+        from botocore.exceptions import BotoCoreError, ClientError  # noqa: PLC0415
         client = _get_s3_client()
         client.put_object(
             Bucket=bucket,
