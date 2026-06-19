@@ -423,3 +423,131 @@ voice-gateway/
 ├── run.py
 └── Dockerfile
 ```
+
+---
+
+## Removing the Demo (Production Hardening)
+
+The project ships with two sets of demo endpoints — **disable both in production**.
+
+### What Demo Routes Exist
+
+| Source | Routes | Auth? | Purpose |
+|---|---|---|---|
+| `api/index.py` | `/api/tts`, `/api/stt`, `/api/voices`, `/api/health` | None | Vercel-only lightweight demo |
+| `app/routers/demo.py` | `/demo`, `/demo/tts`, `/demo/stt`, `/demo/voices`, `/demo/health` | None | In-app unauthenticated test UI |
+
+Both proxy directly to your TTS/STT engines without any authentication or rate limiting.
+
+---
+
+### Step 1 — Disable the In-App Demo Router (`/demo/*`)
+
+The `/demo/*` routes are loaded conditionally in `app/main.py`.  
+To remove them entirely, add this single line to your `.env`:
+
+```bash
+DISABLE_DEMO=true
+```
+
+Verify it's gone:
+```bash
+curl https://api.yourdomain.com/demo/tts
+# → {"detail":"Not Found"}
+```
+
+---
+
+### Step 2 — The Vercel `api/index.py` Does Not Run on Your Server
+
+`api/index.py` is **only used by Vercel**. When you run via Docker or `python run.py`,
+the server runs `app/main.py` exclusively — `api/index.py` is never touched.
+
+> To also shut down the Vercel demo, delete the project in the
+> [Vercel Dashboard](https://vercel.com/dashboard), or remove `vercel.json` from the repo.
+
+---
+
+### Step 3 — Lock Down CORS to Your Frontend
+
+Add your real frontend domain to `.env`:
+
+```bash
+ALLOWED_ORIGINS=https://yourfrontend.com,https://www.yourfrontend.com
+```
+
+> **Never use `*` in production** — it allows any website to make API calls on behalf of your users.
+
+---
+
+### Step 4 — Full Production `.env` (Demo Disabled)
+
+```bash
+# ── App ───────────────────────────────────────────────────────────────────────
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+HOST=0.0.0.0
+PORT=8001
+CREATE_DB_TABLES=false
+
+# ── DEMO OFF ──────────────────────────────────────────────────────────────────
+DISABLE_DEMO=true
+
+# ── Database ──────────────────────────────────────────────────────────────────
+DATABASE_URL=postgresql+psycopg2://voicegw:YOUR_PASSWORD@YOUR_RDS_ENDPOINT:5432/voice_gateway
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+JWT_SECRET=your-64-char-random-secret-here
+JWT_EXPIRES=3600
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+ALLOWED_ORIGINS=https://yourfrontend.com
+
+# ── Voice Engines ─────────────────────────────────────────────────────────────
+TTS_ENGINE_URL=http://185.14.252.20:8000
+TTS_ENGINE_PATH=/v1/tts
+TTS_ALLOWED_FORMATS=wav
+MAX_TTS_TEXT_CHARS=1000
+STT_ENGINE_URL=http://185.14.252.20:8002
+STT_ENGINE_PATH=/v1/stt
+ENGINE_TIMEOUT_SECONDS=60
+
+# ── Audio Storage (S3) ────────────────────────────────────────────────────────
+MAX_AUDIO_UPLOAD_BYTES=26214400
+ALLOWED_AUDIO_CONTENT_TYPES=audio/wav,audio/wave,audio/x-wav,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/webm,audio/ogg
+USE_S3_STORAGE=true
+AWS_ACCESS_KEY_ID=AKIAxxxxxxxxxxxxxxxx
+AWS_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+AWS_S3_BUCKET=voice-gateway-audio
+AWS_S3_REGION=ap-south-1
+```
+
+---
+
+### Demo vs Production — Side-by-Side
+
+| Feature | Vercel Demo (`api/index.py`) | Production Server (`app/main.py`) |
+|---|---|---|
+| Authentication | None | API Key (`X-Api-Key` header) |
+| Database | None | PostgreSQL (AWS RDS) |
+| Audio storage | Streamed only, no persistence | AWS S3 — permanent HTTPS URLs |
+| Usage tracking | None | Per-user request counts in DB |
+| CORS | Open (`*`) | Locked to `ALLOWED_ORIGINS` |
+| Demo routes | All endpoints are demo | Removed via `DISABLE_DEMO=true` |
+| Deployment | Vercel serverless | Docker / any VPS |
+
+---
+
+### Security Checklist Before Going Live
+
+- [ ] `DISABLE_DEMO=true` in `.env`
+- [ ] `ENVIRONMENT=production`
+- [ ] `ALLOWED_ORIGINS` is your specific frontend domain, not `*`
+- [ ] `JWT_SECRET` is a 64-character random string (not the dev placeholder)
+- [ ] `CREATE_DB_TABLES=false` — tables managed by Alembic only
+- [ ] `.env` file is in `.gitignore` and has never been pushed to Git
+- [ ] RDS security group only allows your server IP on port 5432
+- [ ] HTTPS is active on your API domain (Let's Encrypt / ACM)
+- [ ] `alembic upgrade head` has run successfully against PostgreSQL
+- [ ] `GET /ready` returns `{"status":"ready"}`
+- [ ] `GET /engine-health` returns `{"tts":{"status":"ok"},"stt":{"status":"ok"}}`
