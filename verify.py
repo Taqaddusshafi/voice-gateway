@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.main import app
 from app.config import get_settings
+from app.services import stt_service
 
 # In-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///./verify_gateway.db"
@@ -26,6 +27,7 @@ def override_get_db():
 
 def run_tests():
     print("Setting up test database...")
+    stt_service.settings.stt_engine_url = None
     Base.metadata.create_all(bind=engine)
 
     app.dependency_overrides[get_db] = override_get_db

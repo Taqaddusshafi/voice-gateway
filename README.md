@@ -370,10 +370,10 @@ Counters:
 | `JWT_SECRET` | dev value | Use a long random secret |
 | `JWT_EXPIRES` | `3600` | Tune per security policy |
 | `CREATE_DB_TABLES` | `true` | Must be `false` in production |
-| `ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:8001` | Use real frontend domains |
+| `ALLOWED_ORIGINS` | `["http://localhost:3000","http://localhost:8001"]` | Use real frontend domains |
 | `TTS_ENGINE_URL` | `http://localhost:8000` | Internal TTS service URL |
 | `TTS_ENGINE_PATH` | `/v1/tts` | Keep aligned with TTS service |
-| `TTS_ALLOWED_FORMATS` | `wav` | Current TTS service returns WAV |
+| `TTS_ALLOWED_FORMATS` | `["wav"]` | Current TTS service returns WAV |
 | `MAX_TTS_TEXT_CHARS` | `1000` | Match TTS service limit |
 | `STT_ENGINE_URL` | empty | Set real STT service URL |
 | `STT_ENGINE_PATH` | `/v1/stt` | Keep aligned with STT service |
@@ -442,6 +442,7 @@ Deploy:
 
 ```bash
 pip install -r requirements.txt
+python scripts/setup_rds_database.py
 alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 8001
 ```
@@ -455,6 +456,14 @@ Recommended production shape:
 - Keep `.env` secrets out of git.
 - Set `CREATE_DB_TABLES=false`.
 - Run `alembic upgrade head` during deploy/release.
+
+If the target PostgreSQL database does not exist yet, run:
+
+```bash
+python scripts/setup_rds_database.py
+```
+
+That script reads `DATABASE_URL` from `.env`, connects to the maintenance database named `postgres`, and creates the target database if needed. It does not print credentials.
 
 ## Docker
 

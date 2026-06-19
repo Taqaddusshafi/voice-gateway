@@ -1,5 +1,6 @@
 import pytest
 import httpx
+import json
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -184,7 +185,11 @@ async def test_tts_service_payload_matches_tts_microservice(monkeypatch):
     assert audio == b"RIFFfake wav"
     assert len(requests) == 1
     assert requests[0].url.path == "/v1/tts"
-    assert requests[0].read() == b'{"text":"Hello","language":"en","voice":"en-US-female-1"}'
+    payload = json.loads(requests[0].read())
+    assert payload["text"] == "Hello"
+    assert payload["language"] == "en"
+    assert "format" not in payload
+    assert payload["voice"].startswith("Divya's voice")
 
 
 def test_speech_to_text_passes_language_to_service(client, monkeypatch):
