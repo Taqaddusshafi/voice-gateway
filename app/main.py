@@ -14,8 +14,9 @@ configure_logging(settings.log_level)
 if settings.create_db_tables:
     Base.metadata.create_all(bind=engine)
 
-# Ensure audio storage folder exists
-os.makedirs(settings.audio_storage_dir, exist_ok=True)
+# Ensure audio storage folder exists (used as local fallback when S3 is off)
+if not settings.use_s3_storage:
+    os.makedirs(settings.audio_storage_dir, exist_ok=True)
 
 app = FastAPI(title="Voice Gateway API", version="1.0.0")
 
@@ -27,8 +28,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount audio storage directory to serve saved files
-app.mount("/audio", StaticFiles(directory=settings.audio_storage_dir), name="audio")
+# Mount the local audio directory only when NOT using S3.
+# In S3 mode, audio_url values are full HTTPS URLs — no local serving needed.
+if not settings.use_s3_storage:
+    app.mount("/audio", StaticFiles(directory=settings.audio_storage_dir), name="audio")
 
 app.include_router(auth.router)
 app.include_router(profile.router)
