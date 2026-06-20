@@ -103,21 +103,21 @@ async def list_voices():
 async def demo_tts(
     text: str = Form(...),
     language: str = Form(default="en"),
-    voice: str = Form(default="aria"),
+    voice: str = Form(default="divya"),
 ):
-    """Proxy TTS request to the engine and return raw audio bytes. No auth."""
-    # Resolve a named speaker (e.g. 'rohit') to its natural-language description
-    # if needed, otherwise pass the voice string straight through
-    resolved_voice = voice
-    if voice.lower() in SPEAKERS:
-        resolved_voice = f"{SPEAKERS[voice.lower()]['style']} speaker"
+    """Proxy TTS request to the engine and return raw audio bytes. No auth.
+
+    Sends the speaker NAME directly to the engine.  The engine has its own
+    optimized speaker registry — resolving descriptions here caused voice
+    tone mismatches between different API paths.
+    """
 
     url = f"{TTS_ENGINE_URL.rstrip('/')}{TTS_ENGINE_PATH}"
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 url,
-                json={"text": text, "language": language, "voice": resolved_voice},
+                json={"text": text, "language": language, "voice": voice},
                 timeout=ENGINE_TIMEOUT,
             )
             resp.raise_for_status()

@@ -138,7 +138,15 @@ def get_speaker_description(speaker_name: str) -> str:
 
 
 async def synthesize(text: str, voice: str, format: str) -> bytes:
-    """Proxy the TTS synthesis request to the underlying engine."""
+    """Proxy the TTS synthesis request to the underlying engine.
+
+    IMPORTANT: We send the speaker NAME (e.g. "rohit", "divya") directly
+    to the engine — NOT a resolved description.  The engine has its own
+    optimized speaker registry with "very clear audio" phrases and named
+    speaker embeddings.  Resolving the description here in the gateway
+    bypasses the engine's optimizations and causes voice tone mismatches
+    between different API paths.
+    """
 
     # Extract language code from voice string for routing
     # Supports: "rohit" (name only), "hi-rohit", "hi-female-1" (legacy)
@@ -154,11 +162,23 @@ async def synthesize(text: str, voice: str, format: str) -> bytes:
         # No language prefix — treat the whole string as a speaker name
         speaker_part = voice_lower or DEFAULT_SPEAKER
 
-    parler_voice = get_speaker_description(speaker_part)
+    # Validate the speaker name exists; fall back to default if unknown.
+    # But send the NAME, not the description — let the engine resolve it.
+    resolved_name = speaker_part
+    if speaker_part not in SPEAKERS:
+        # Legacy compat: gender-based fallback
+        if "female" in speaker_part:
+            resolved_name = "divya"
+        elif "male" in speaker_part:
+            resolved_name = "rohit"
+        elif len(speaker_part) > 40:
+            # Already a long description string — pass through as-is
+            resolved_name = speaker_part
+        else:
+            resolved_name = DEFAULT_SPEAKER
 
     logger.info(
-        f"TTS → engine | lang={lang} speaker={speaker_part!r} "
-        f"description={parler_voice[:60]!r}..."
+        f"TTS → engine | lang={lang} speaker={resolved_name!r}"
     )
 
     async with httpx.AsyncClient() as client:
@@ -167,7 +187,7 @@ async def synthesize(text: str, voice: str, format: str) -> bytes:
             json={
                 "text": text,
                 "language": lang,
-                "voice": parler_voice,
+                "voice": resolved_name,
             },
             timeout=settings.engine_timeout_seconds,
         )
