@@ -20,3 +20,10 @@ class TextToSpeech(Base):
     current_time = Column(DateTime, server_default=func.now())
     updating_time = Column(DateTime, nullable=True)
     processing_time = Column(Float, nullable=True)
+
+    # Async job queue fields
+    status = Column(String(20), default="completed", nullable=False, index=True)
+    error_message = Column(Text, nullable=True)
+    voice = Column(String(256), nullable=True)
+    format = Column(String(16), default="wav", nullable=True)
+
