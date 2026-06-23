@@ -26,4 +26,9 @@ class TextToSpeech(Base):
     error_message = Column(Text, nullable=True)
     voice = Column(String(256), nullable=True)
     format = Column(String(16), default="wav", nullable=True)
+    queue_position = Column(Integer, nullable=True)
+
+    # Webhook callback fields
+    webhook_url = Column(String(2048), nullable=True)
+    webhook_sent_at = Column(DateTime, nullable=True)
 

@@ -18,6 +18,7 @@ settings = get_settings()
 @router.post("/speech-to-text")
 async def speech_to_text(file: UploadFile = File(...),
                          language: str | None = Form(default=None),
+                         webhook_url: str | None = Form(default=None),
                          user: User = Depends(verify_api_key),
                          db: Session = Depends(get_db)):
     data = await file.read()
@@ -40,11 +41,16 @@ async def speech_to_text(file: UploadFile = File(...),
     if settings.use_async_queue:
         from app.services.sqs_client import send_job
 
+        # Compute queue position (number of currently queued jobs + 1)
+        queue_pos = db.query(SpeechToText).filter(SpeechToText.status == "queued").count() + 1
+
         job = SpeechToText(
             audio="",
             user_id=user.user_id,
             status="queued",
             language=language,
+            webhook_url=webhook_url,
+            queue_position=queue_pos,
         )
         db.add(job)
         db.commit()
@@ -65,11 +71,13 @@ async def speech_to_text(file: UploadFile = File(...),
                 "content_type": content_type,
                 "language": language,
                 "user_id": user.user_id,
+                "webhook_url": webhook_url,
             },
         )
         return {
             "job_id": job.request_id,
             "status": "queued",
+            "queue_position": queue_pos,
             "message": "Job submitted. Poll GET /jobs/{job_id} for status.",
         }
 

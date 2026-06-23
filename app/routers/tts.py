@@ -49,12 +49,17 @@ async def text_to_speech(body: TTSRequest,
     if settings.use_async_queue:
         from app.services.sqs_client import send_job
 
+        # Compute queue position (number of currently queued jobs + 1)
+        queue_pos = db.query(TextToSpeech).filter(TextToSpeech.status == "queued").count() + 1
+
         job = TextToSpeech(
             detail=body.text,
             user_id=user.user_id,
             status="queued",
             voice=body.voice,
             format=body.format,
+            webhook_url=body.webhook_url,
+            queue_position=queue_pos,
         )
         db.add(job)
         db.commit()
@@ -69,11 +74,13 @@ async def text_to_speech(body: TTSRequest,
                 "voice": body.voice,
                 "format": body.format,
                 "user_id": user.user_id,
+                "webhook_url": body.webhook_url,
             },
         )
         return {
             "job_id": job.request_id,
             "status": "queued",
+            "queue_position": queue_pos,
             "message": "Job submitted. Poll GET /jobs/{job_id} for status.",
         }
 
